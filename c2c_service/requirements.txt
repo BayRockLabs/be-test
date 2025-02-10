@@ -1,0 +1,15 @@
+Django==5.0.2
+psycopg2-binary
+djangorestframework==3.14.0
+azure-storage-blob==12.19.1
+python-dotenv==1.0.1
+drf-yasg==1.21.7
+django-import-export==3.3.7
+django-cors-headers==4.3.1
+PyJWT==2.8.0
+django-filter
+tika==2.6.0
+openpyxl
+django-apscheduler
+pandas
+portalocker
