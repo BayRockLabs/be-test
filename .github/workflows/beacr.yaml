@@ -13,6 +13,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
+    - name: Debug directory structure
+      run: |
+        ls -R
+
     - name: Log in to Azure Container Registry
       uses: azure/docker-login@v1
       with:
@@ -21,8 +25,8 @@ jobs:
         password: ${{ secrets.C2C_DEMO_BRL_REGISTRY_PASSWORD }}
 
     - name: Build and tag Docker image
-      working-directory: c2c_service
       run: |
+        cd c2c_service
         docker build \
           --build-arg DEBUG=${{ secrets.DEBUG }} \
           --build-arg MONTHLY=${{ secrets.MONTHLY }} \
@@ -45,7 +49,7 @@ jobs:
           --build-arg SUB_CONTRACTOR=${{ secrets.SUB_CONTRACTOR }} \
           --build-arg ACCOUNT_URL=${{ secrets.ACCOUNT_URL }} \
           --build-arg AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }} \
-          --build-arg AZURE_CONTAINER_STRING=${{ secrets.AZURE_CONTAINER_STRING }} \
+          --build-arg AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }} \
           --build-arg DB_HOSTNAME=${{ secrets.DB_HOSTNAME }} \
           --build-arg DB_USERNAME=${{ secrets.DB_USERNAME }} \
           --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
