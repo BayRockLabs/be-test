@@ -32,7 +32,7 @@ jobs:
       with:
         context: ./c2c_service
         push: true
-        tags: ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:${{ github.run_number }}
+        tags: ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external-img:${{ github.run_number }}
         build-args: |
           DEBUG=${{ secrets.DEBUG }}
           MONTHLY=${{ secrets.MONTHLY }}
@@ -76,4 +76,4 @@ jobs:
 
     - name: Push Docker image to ACR
       run: |
-        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:${{ github.run_number }}
+        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external-img:${{ github.run_number }}
