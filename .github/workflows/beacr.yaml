@@ -73,11 +73,3 @@ jobs:
           SCHEDULER_HOUR=${{ secrets.SCHEDULER_HOUR }}
           SCHEDULER_MINUTE=${{ secrets.SCHEDULER_MINUTE }}
           SCHEDULER_TIMEZONE=${{ secrets.SCHEDULER_TIMEZONE }}
-
-    - name: Verify Docker image
-      run: |
-        docker images
-
-    - name: Push Docker image to ACR
-      run: |
-        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external-img:${{ env.sha_short }}
