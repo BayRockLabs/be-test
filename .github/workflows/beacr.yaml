@@ -21,8 +21,8 @@ jobs:
         password: ${{ secrets.C2C_DEMO_BRL_REGISTRY_PASSWORD }}
 
     - name: Build and tag Docker image
+      working-directory: c2c_service
       run: |
-        cd c2c_service
         docker build \
           --build-arg DEBUG=${{ secrets.DEBUG }} \
           --build-arg MONTHLY=${{ secrets.MONTHLY }} \
