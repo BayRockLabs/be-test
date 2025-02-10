@@ -1,0 +1,65 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - be-noenv2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Log in to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}
+        username: ${{ secrets.C2C_DEMO_BRL_REGISTRY_USERNAME }}
+        password: ${{ secrets.C2C_DEMO_BRL_REGISTRY_PASSWORD }}
+
+    - name: Build and tag Docker image
+      run: |
+        docker build \
+          --build-arg DEBUG=${{ secrets.DEBUG }} \
+          --build-arg MONTHLY=${{ secrets.MONTHLY }} \
+          --build-arg YEARLY=${{ secrets.YEARLY }} \
+          --build-arg BI_WEEKLY=${{ secrets.BI_WEEKLY }} \
+          --build-arg QUARTERLY=${{ secrets.QUARTERLY }} \
+          --build-arg ACTIVE=${{ secrets.ACTIVE }} \
+          --build-arg INACTIVE=${{ secrets.INACTIVE }} \
+          --build-arg POTENTIAL_LEAD=${{ secrets.POTENTIAL_LEAD }} \
+          --build-arg ONBOARDED=${{ secrets.ONBOARDED }} \
+          --build-arg US=${{ secrets.US }} \
+          --build-arg LATAM=${{ secrets.LATAM }} \
+          --build-arg IND=${{ secrets.IND }} \
+          --build-arg EUR=${{ secrets.EUR }} \
+          --build-arg USD=${{ secrets.USD }} \
+          --build-arg INR=${{ secrets.INR }} \
+          --build-arg EMPLOYEE=${{ secrets.EMPLOYEE }} \
+          --build-arg CONTRACTOR=${{ secrets.CONTRACTOR }} \
+          --build-arg EMPLOYEE_HOURLY=${{ secrets.EMPLOYEE_HOURLY }} \
+          --build-arg SUB_CONTRACTOR=${{ secrets.SUB_CONTRACTOR }} \
+          --build-arg ACCOUNT_URL=${{ secrets.ACCOUNT_URL }} \
+          --build-arg AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }} \
+          --build-arg AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }} \
+          --build-arg DB_HOSTNAME=${{ secrets.DB_HOSTNAME }} \
+          --build-arg DB_USERNAME=${{ secrets.DB_USERNAME }} \
+          --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          --build-arg DB_NAME=${{ secrets.DB_NAME }} \
+          --build-arg DB_PORT=${{ secrets.DB_PORT }} \
+          --build-arg AUTH_API=${{ secrets.AUTH_API }} \
+          --build-arg PROFILE=${{ secrets.PROFILE }} \
+          --build-arg MPS_DOCUMENT_PARSER_API=${{ secrets.MPS_DOCUMENT_PARSER_API }} \
+          --build-arg OPENAI_API=${{ secrets.OPENAI_API }} \
+          --build-arg SCHEDULER_DAY=${{ secrets.SCHEDULER_DAY }} \
+          --build-arg SCHEDULER_HOUR=${{ secrets.SCHEDULER_HOUR }} \
+          --build-arg SCHEDULER_MINUTE=${{ secrets.SCHEDULER_MINUTE }} \
+          --build-arg SCHEDULER_TIMEZONE=${{ secrets.SCHEDULER_TIMEZONE }} \
+          -t ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c_service:latest ./c2c_service
+
+    - name: Push Docker image to ACR
+      run: |
+        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c_service:latest
