@@ -27,49 +27,53 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v4
-      with:
-        context: ./c2c_service
-        push: true
-        tags: ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:latest
-        build-args: |
-          DEBUG=${{ secrets.DEBUG }}
-          MONTHLY=${{ secrets.MONTHLY }}
-          YEARLY=${{ secrets.YEARLY }}
-          BI_WEEKLY=${{ secrets.BI_WEEKLY }}
-          QUARTERLY=${{ secrets.QUARTERLY }}
-          ACTIVE=${{ secrets.ACTIVE }}
-          INACTIVE=${{ secrets.INACTIVE }}
-          POTENTIAL_LEAD=${{ secrets.POTENTIAL_LEAD }}
-          ONBOARDED=${{ secrets.ONBOARDED }}
-          US=${{ secrets.US }}
-          LATAM=${{ secrets.LATAM }}
-          IND=${{ secrets.IND }}
-          EUR=${{ secrets.EUR }}
-          USD=${{ secrets.USD }}
-          INR=${{ secrets.INR }}
-          EMPLOYEE=${{ secrets.EMPLOYEE }}
-          CONTRACTOR=${{ secrets.CONTRACTOR }}
-          EMPLOYEE_HOURLY=${{ secrets.EMPLOYEE_HOURLY }}
-          SUB_CONTRACTOR=${{ secrets.SUB_CONTRACTOR }}
-          ACCOUNT_URL=${{ secrets.ACCOUNT_URL }}
-          AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }}
-          AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}
-          DB_HOSTNAME=${{ secrets.DB_HOSTNAME }}
-          DB_USERNAME=${{ secrets.DB_USERNAME }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_PORT=${{ secrets.DB_PORT }}
-          AUTH_API=${{ secrets.AUTH_API }}
-          PROFILE=${{ secrets.PROFILE }}
-          MPS_DOCUMENT_PARSER_API=${{ secrets.MPS_DOCUMENT_PARSER_API }}
-          OPENAI_API=${{ secrets.OPENAI_API }}
-          SCHEDULER_DAY=${{ secrets.SCHEDULER_DAY }}
-          SCHEDULER_HOUR=${{ secrets.SCHEDULER_HOUR }}
-          SCHEDULER_MINUTE=${{ secrets.SCHEDULER_MINUTE }}
-          SCHEDULER_TIMEZONE=${{ secrets.SCHEDULER_TIMEZONE }}
+    - name: Build and tag Docker image
+      working-directory: c2c_service
+      run: |
+        IMAGE_TAG=${{ github.run_number }}
+        docker build \
+          --build-arg DEBUG=${{ secrets.DEBUG }} \
+          --build-arg MONTHLY=${{ secrets.MONTHLY }} \
+          --build-arg YEARLY=${{ secrets.YEARLY }} \
+          --build-arg BI_WEEKLY=${{ secrets.BI_WEEKLY }} \
+          --build-arg QUARTERLY=${{ secrets.QUARTERLY }} \
+          --build-arg ACTIVE=${{ secrets.ACTIVE }} \
+          --build-arg INACTIVE=${{ secrets.INACTIVE }} \
+          --build-arg POTENTIAL_LEAD=${{ secrets.POTENTIAL_LEAD }} \
+          --build-arg ONBOARDED=${{ secrets.ONBOARDED }} \
+          --build-arg US=${{ secrets.US }} \
+          --build-arg LATAM=${{ secrets.LATAM }} \
+          --build-arg IND=${{ secrets.IND }} \
+          --build-arg EUR=${{ secrets.EUR }} \
+          --build-arg USD=${{ secrets.USD }} \
+          --build-arg INR=${{ secrets.INR }} \
+          --build-arg EMPLOYEE=${{ secrets.EMPLOYEE }} \
+          --build-arg CONTRACTOR=${{ secrets.CONTRACTOR }} \
+          --build-arg EMPLOYEE_HOURLY=${{ secrets.EMPLOYEE_HOURLY }} \
+          --build-arg SUB_CONTRACTOR=${{ secrets.SUB_CONTRACTOR }} \
+          --build-arg ACCOUNT_URL=${{ secrets.ACCOUNT_URL }} \
+          --build-arg AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }} \
+          --build-arg AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }} \
+          --build-arg DB_HOSTNAME=${{ secrets.DB_HOSTNAME }} \
+          --build-arg DB_USERNAME=${{ secrets.DB_USERNAME }} \
+          --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+          --build-arg DB_NAME=${{ secrets.DB_NAME }} \
+          --build-arg DB_PORT=${{ secrets.DB_PORT }} \
+          --build-arg AUTH_API=${{ secrets.AUTH_API }} \
+          --build-arg PROFILE=${{ secrets.PROFILE }} \
+          --build-arg MPS_DOCUMENT_PARSER_API=${{ secrets.MPS_DOCUMENT_PARSER_API }} \
+          --build-arg OPENAI_API=${{ secrets.OPENAI_API }} \
+          --build-arg SCHEDULER_DAY=${{ secrets.SCHEDULER_DAY }} \
+          --build-arg SCHEDULER_HOUR=${{ secrets.SCHEDULER_HOUR }} \
+          --build-arg SCHEDULER_MINUTE=${{ secrets.SCHEDULER_MINUTE }} \
+          --build-arg SCHEDULER_TIMEZONE=${{ secrets.SCHEDULER_TIMEZONE }} \
+          -t ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:${IMAGE_TAG} .
+
+    - name: Verify Docker image
+      run: |
+        docker images
 
     - name: Push Docker image to ACR
       run: |
-        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:latest
+        IMAGE_TAG=${{ github.run_number }}
+        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:${IMAGE_TAG}
