@@ -25,8 +25,8 @@ jobs:
         password: ${{ secrets.C2C_DEMO_BRL_REGISTRY_PASSWORD }}
 
     - name: Build and tag Docker image
+      working-directory: c2c_service
       run: |
-        cd c2c_service
         docker build \
           --build-arg DEBUG=${{ secrets.DEBUG }} \
           --build-arg MONTHLY=${{ secrets.MONTHLY }} \
@@ -63,8 +63,8 @@ jobs:
           --build-arg SCHEDULER_HOUR=${{ secrets.SCHEDULER_HOUR }} \
           --build-arg SCHEDULER_MINUTE=${{ secrets.SCHEDULER_MINUTE }} \
           --build-arg SCHEDULER_TIMEZONE=${{ secrets.SCHEDULER_TIMEZONE }} \
-          -t ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:latest .
+          -t ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c_service:latest .
 
     - name: Push Docker image to ACR
       run: |
-        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-be-external:latest
+        docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c_service:latest
