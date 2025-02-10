@@ -22,7 +22,7 @@ jobs:
 
     - name: Build and tag Docker image
       run: |
-        cd ***
+        cd c2c_service
         docker build \
           --build-arg DEBUG=${{ secrets.DEBUG }} \
           --build-arg MONTHLY=${{ secrets.MONTHLY }} \
