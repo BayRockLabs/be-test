@@ -38,21 +38,21 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ./terraform
+        working-directory: terraform
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
       - name: Terraform Apply
         if: github.event.inputs.action == 'apply' || github.event_name == 'push'
         run: terraform apply -auto-approve
-        working-directory: ./terraform
+        working-directory: terraform
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
         run: terraform destroy -auto-approve
-        working-directory: ./terraform
+        working-directory: terraform
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
@@ -65,4 +65,4 @@ jobs:
           echo "::set-output name=db-password::$(terraform output -raw DB_PASSWORD)"
           echo "::set-output name=db-name::$(terraform output -raw DB_NAME)"
           echo "::set-output name=db-port::$(terraform output -raw DB_PORT)"
-        working-directory: ./terraform
+        working-directory: terraform
