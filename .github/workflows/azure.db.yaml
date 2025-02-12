@@ -1,0 +1,60 @@
+name: Create Azure PostgreSQL Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+
+jobs:
+  create-db:
+    runs-on: ubuntu-latest
+    outputs:
+      db-hostname: ${{ steps.outputs.outputs.db-hostname }}
+      db-username: ${{ steps.outputs.outputs.db-username }}
+      db-password: ${{ steps.outputs.outputs.db-password }}
+      db-name: ${{ steps.outputs.outputs.db-name }}
+      db-port: ${{ steps.outputs.outputs.db-port }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          ref: db-env-test
+
+      - name: Change to Terraform directory
+        run: cd terraform
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply or Destroy
+        id: apply_or_destroy
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+              terraform apply -auto-approve
+            else
+              terraform destroy -auto-approve
+            fi
+          else
+            terraform apply -auto-approve
+          fi
+
+      - name: Set outputs
+        if: steps.apply_or_destroy.outputs.action == 'apply'
+        id: outputs
+        run: |
+          echo "::set-output name=db-hostname::$(terraform output -raw DB_HOSTNAME)"
+          echo "::set-output name=db-username::$(terraform output -raw DB_USERNAME)"
+          echo "::set-output name=db-password::$(terraform output -raw DB_PASSWORD)"
+          echo "::set-output name=db-name::$(terraform output -raw DB_NAME)"
+          echo "::set-output name=db-port::$(terraform output -raw DB_PORT)"
