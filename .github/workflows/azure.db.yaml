@@ -11,6 +11,9 @@ on:
         options:
           - apply
           - destroy
+  push:
+    branches:
+      - db-env-test
 
 jobs:
   create-db:
@@ -24,6 +27,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          ref: db-env-test
 
       - name: Change to Terraform directory
         run: cd terraform
@@ -37,10 +42,14 @@ jobs:
       - name: Terraform Apply or Destroy
         id: apply_or_destroy
         run: |
-          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
-            terraform apply -auto-approve
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+              terraform apply -auto-approve
+            else
+              terraform destroy -auto-approve
+            fi
           else
-            terraform destroy -auto-approve
+            terraform apply -auto-approve
           fi
 
       - name: Set outputs
