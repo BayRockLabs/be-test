@@ -1,32 +1,60 @@
-# This is a basic workflow that is manually triggered
+name: Create Azure PostgreSQL Database
 
-name: Manual workflow
-
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
   workflow_dispatch:
-    # Inputs the workflow accepts.
     inputs:
-      name:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: 'Person to greet'
-        # Default value if no value is explicitly provided
-        default: 'World'
-        # Input has to be provided for the workflow to run
+      action:
+        description: 'Action to perform'
         required: true
-        # The data type of the input
-        type: string
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "greet"
-  greet:
-    # The type of runner that the job will run on
+  create-db:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    outputs:
+      db-hostname: ${{ steps.outputs.outputs.db-hostname }}
+      db-username: ${{ steps.outputs.outputs.db-username }}
+      db-password: ${{ steps.outputs.outputs.db-password }}
+      db-name: ${{ steps.outputs.outputs.db-name }}
+      db-port: ${{ steps.outputs.outputs.db-port }}
     steps:
-    # Runs a single command using the runners shell
-    - name: Send greeting
-      run: echo "Hello ${{ inputs.name }}"
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          ref: db-env-test
+
+      - name: Change to Terraform directory
+        run: cd terraform
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply or Destroy
+        id: apply_or_destroy
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+              terraform apply -auto-approve
+            else
+              terraform destroy -auto-approve
+            fi
+          else
+            terraform apply -auto-approve
+          fi
+
+      - name: Set outputs
+        if: steps.apply_or_destroy.outputs.action == 'apply'
+        id: outputs
+        run: |
+          echo "::set-output name=db-hostname::$(terraform output -raw DB_HOSTNAME)"
+          echo "::set-output name=db-username::$(terraform output -raw DB_USERNAME)"
+          echo "::set-output name=db-password::$(terraform output -raw DB_PASSWORD)"
+          echo "::set-output name=db-name::$(terraform output -raw DB_NAME)"
+          echo "::set-output name=db-port::$(terraform output -raw DB_PORT)"
