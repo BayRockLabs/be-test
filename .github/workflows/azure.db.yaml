@@ -11,9 +11,6 @@ on:
         options:
           - apply
           - destroy
-  push:
-    branches:
-      - db-env-test
 
 jobs:
   create-db:
