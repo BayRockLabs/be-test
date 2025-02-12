@@ -11,46 +11,53 @@ on:
         options:
           - apply
           - destroy
+  push:
+    branches:
+      - db-env-test
 
 jobs:
-  create-db:
+  terraform:
+    name: 'Terraform'
     runs-on: ubuntu-latest
-    outputs:
-      db-hostname: ${{ steps.outputs.outputs.db-hostname }}
-      db-username: ${{ steps.outputs.outputs.db-username }}
-      db-password: ${{ steps.outputs.outputs.db-password }}
-      db-name: ${{ steps.outputs.outputs.db-name }}
-      db-port: ${{ steps.outputs.outputs.db-port }}
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v2
         with:
           ref: db-env-test
 
-      - name: Change to Terraform directory
-        run: cd terraform
+      - name: 'Login via Azure CLI'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.0
 
       - name: Terraform Init
         run: terraform init
+        working-directory: ./terraform
+        env:
+          ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
-      - name: Terraform Apply or Destroy
-        id: apply_or_destroy
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            if [ "${{ github.event.inputs.action }}" == "apply" ]; then
-              terraform apply -auto-approve
-            else
-              terraform destroy -auto-approve
-            fi
-          else
-            terraform apply -auto-approve
-          fi
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
+        run: terraform apply -auto-approve
+        working-directory: ./terraform
+        env:
+          ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+        working-directory: ./terraform
+        env:
+          ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
       - name: Set outputs
-        if: steps.apply_or_destroy.outputs.action == 'apply'
+        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
         id: outputs
         run: |
           echo "::set-output name=db-hostname::$(terraform output -raw DB_HOSTNAME)"
@@ -58,3 +65,4 @@ jobs:
           echo "::set-output name=db-password::$(terraform output -raw DB_PASSWORD)"
           echo "::set-output name=db-name::$(terraform output -raw DB_NAME)"
           echo "::set-output name=db-port::$(terraform output -raw DB_PORT)"
+        working-directory: ./terraform
