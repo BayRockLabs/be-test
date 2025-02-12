@@ -1,6 +1,16 @@
 name: Create Azure PostgreSQL Database
 
-on: [push]
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
 
 jobs:
   create-db:
@@ -15,17 +25,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Change to Terraform directory
+        run: cd terraform
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
 
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Apply
-        id: apply
-        run: terraform apply -auto-approve
+      - name: Terraform Apply or Destroy
+        id: apply_or_destroy
+        run: |
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            terraform apply -auto-approve
+          else
+            terraform destroy -auto-approve
+          fi
 
       - name: Set outputs
+        if: steps.apply_or_destroy.outputs.action == 'apply'
         id: outputs
         run: |
           echo "::set-output name=db-hostname::$(terraform output -raw DB_HOSTNAME)"
