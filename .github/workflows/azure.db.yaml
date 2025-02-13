@@ -1,4 +1,4 @@
-name: Create Azure PostgreSQL Database
+name: Create Azure PostgreSQL Database 2
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
           - destroy
   push:
     branches:
-      - master
+      - db-env-test
 
 jobs:
   terraform:
@@ -24,7 +24,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          ref: master
+          ref: db-env-test
 
       - name: 'Login via Azure CLI'
         uses: azure/login@v1
