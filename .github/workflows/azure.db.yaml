@@ -60,9 +60,9 @@ jobs:
         if: github.event.inputs.action == 'apply' || github.event_name == 'push'
         id: outputs
         run: |
-          echo "::set-output name=db-hostname::$(terraform output -raw DB_HOSTNAME)"
-          echo "::set-output name=db-username::$(terraform output -raw DB_USERNAME)"
-          echo "::set-output name=db-password::$(terraform output -raw DB_PASSWORD)"
-          echo "::set-output name=db-name::$(terraform output -raw DB_NAME)"
-          echo "::set-output name=db-port::$(terraform output -raw DB_PORT)"
+          echo "db-hostname=$(terraform output -raw DB_HOSTNAME)" >> $GITHUB_ENV
+          echo "db-username=$(terraform output -raw DB_USERNAME)" >> $GITHUB_ENV
+          echo "db-password=$(terraform output -raw DB_PASSWORD)" >> $GITHUB_ENV
+          echo "db-name=$(terraform output -raw DB_NAME)" >> $GITHUB_ENV
+          echo "db-port=$(terraform output -raw DB_PORT)" >> $GITHUB_ENV
         working-directory: terraform
