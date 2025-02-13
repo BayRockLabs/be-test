@@ -15,11 +15,9 @@ on:
     branches:
       - db-env-test
 
-# Add permissions block here
 permissions:
   contents: read
   actions: write
-  packages: write
 
 jobs:
   terraform:
@@ -61,6 +59,11 @@ jobs:
         working-directory: terraform
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
+
+      - name: Debug Terraform Outputs
+        run: |
+          terraform output -json
+        working-directory: terraform
 
       - name: Set outputs
         if: github.event.inputs.action == 'apply' || github.event_name == 'push'
