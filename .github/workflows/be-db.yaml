@@ -16,6 +16,21 @@ jobs:
         with:
           ref: db-env-test
 
+      - name: Download terraform outputs
+        uses: actions/download-artifact@v2
+        with:
+          name: terraform-outputs
+          path: terraform
+
+      - name: Set environment variables from terraform outputs
+        id: set-vars
+        run: |
+          echo "DB_HOSTNAME=$(jq -r '.DB_HOSTNAME.value' terraform/outputs.json)" >> $GITHUB_ENV
+          echo "DB_USERNAME=$(jq -r '.DB_USERNAME.value' terraform/outputs.json)" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$(jq -r '.DB_PASSWORD.value' terraform/outputs.json)" >> $GITHUB_ENV
+          echo "DB_NAME=$(jq -r '.DB_NAME.value' terraform/outputs.json)" >> $GITHUB_ENV
+          echo "DB_PORT=$(jq -r '.DB_PORT.value' terraform/outputs.json)" >> $GITHUB_ENV
+
       - name: Debug directory structure
         run: ls -R
 
