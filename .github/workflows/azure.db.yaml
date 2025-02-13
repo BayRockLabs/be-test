@@ -1,4 +1,4 @@
-name: Create Azure PostgreSQL Database 2
+name: Create Azure PostgreSQL Database
 
 on:
   workflow_dispatch:
@@ -60,9 +60,9 @@ jobs:
         if: github.event.inputs.action == 'apply' || github.event_name == 'push'
         id: outputs
         run: |
-          echo "DB_HOSTNAME=$(terraform output -raw DB_HOSTNAME)" >> $GITHUB_ENV
-          echo "DB_USERNAME=$(terraform output -raw DB_USERNAME)" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$(terraform output -raw DB_PASSWORD)" >> $GITHUB_ENV
-          echo "DB_NAME=$(terraform output -raw DB_NAME)" >> $GITHUB_ENV
-          echo "DB_PORT=$(terraform output -raw DB_PORT)" >> $GITHUB_ENV
+          echo "DB_HOSTNAME=$(terraform output -raw DB_HOSTNAME)" >> $GITHUB_OUTPUT
+          echo "DB_USERNAME=$(terraform output -raw DB_USERNAME)" >> $GITHUB_OUTPUT
+          echo "DB_PASSWORD=$(terraform output -raw DB_PASSWORD)" >> $GITHUB_OUTPUT
+          echo "DB_NAME=$(terraform output -raw DB_NAME)" >> $GITHUB_OUTPUT
+          echo "DB_PORT=$(terraform output -raw DB_PORT)" >> $GITHUB_OUTPUT
         working-directory: terraform
