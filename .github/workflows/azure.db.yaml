@@ -15,6 +15,12 @@ on:
     branches:
       - db-env-test
 
+# Add permissions block here
+permissions:
+  contents: read
+  actions: write
+  packages: write
+
 jobs:
   terraform:
     name: 'Terraform'
@@ -69,7 +75,7 @@ jobs:
         working-directory: terraform
 
       - name: Upload outputs as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: terraform-outputs
           path: terraform/outputs.json
