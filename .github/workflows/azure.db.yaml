@@ -15,10 +15,6 @@ on:
     branches:
       - db-env-test
 
-permissions:
-  contents: read
-  actions: write
-
 jobs:
   terraform:
     name: 'Terraform'
@@ -48,37 +44,23 @@ jobs:
 
       - name: Terraform Apply
         if: github.event.inputs.action == 'apply' || github.event_name == 'push'
-        run: terraform apply -auto-approve
+        run: |
+          terraform apply -auto-approve
+          terraform output -json > terraform_output.json
         working-directory: terraform
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
-      - name: Terraform Destroy
-        if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
-        working-directory: terraform
-        env:
-          ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
-
-      - name: Debug Terraform Outputs
+      - name: Parse and Set Secrets
         run: |
-          terraform output -json
+          DB_HOSTNAME=$(jq -r '.DB_HOSTNAME.value' terraform/terraform_output.json)
+          DB_USERNAME=$(jq -r '.DB_USERNAME.value' terraform/terraform_output.json)
+          DB_PASSWORD=$(jq -r '.DB_PASSWORD.value' terraform/terraform_output.json)
+          DB_NAME=$(jq -r '.DB_NAME.value' terraform/terraform_output.json)
+          DB_PORT=$(jq -r '.DB_PORT.value' terraform/terraform_output.json)
+          gh secret set DB_HOSTNAME --body "$DB_HOSTNAME"
+          gh secret set DB_USERNAME --body "$DB_USERNAME"
+          gh secret set DB_PASSWORD --body "$DB_PASSWORD"
+          gh secret set DB_NAME --body "$DB_NAME"
+          gh secret set DB_PORT --body "$DB_PORT"
         working-directory: terraform
-
-      - name: Set outputs
-        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
-        id: outputs
-        run: |
-          terraform output -json > outputs.json
-          echo "DB_HOSTNAME=$(jq -r '.DB_HOSTNAME.value' outputs.json)" >> $GITHUB_ENV
-          echo "DB_USERNAME=$(jq -r '.DB_USERNAME.value' outputs.json)" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$(jq -r '.DB_PASSWORD.value' outputs.json)" >> $GITHUB_ENV
-          echo "DB_NAME=$(jq -r '.DB_NAME.value' outputs.json)" >> $GITHUB_ENV
-          echo "DB_PORT=$(jq -r '.DB_PORT.value' outputs.json)" >> $GITHUB_ENV
-        working-directory: terraform
-
-      - name: Upload outputs as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-outputs
-          path: terraform/outputs.json
