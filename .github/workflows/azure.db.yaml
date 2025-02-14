@@ -45,7 +45,17 @@ jobs:
       - name: Terraform Apply or Destroy
         run: |
           if [ "${{ github.event.inputs.action }}" == "apply" ]; then
-            terraform apply -auto-approve -var "db_hostname=${{ secrets.DB_HOSTNAME }}" -var "db_username=${{ secrets.DB_USERNAME }}" -var "db_password=${{ secrets.DB_PASSWORD }}" -var "db_name=${{ secrets.DB_NAME }}" -var "db_port=${{ secrets.DB_PORT }}"
+            terraform apply -auto-approve
+            DB_HOSTNAME=$(terraform output -raw DB_HOSTNAME)
+            DB_USERNAME=$(terraform output -raw DB_USERNAME)
+            DB_PASSWORD=$(terraform output -raw DB_PASSWORD)
+            DB_NAME=$(terraform output -raw DB_NAME)
+            DB_PORT=$(terraform output -raw DB_PORT)
+            echo "::set-output name=db-hostname::$DB_HOSTNAME"
+            echo "::set-output name=db-username::$DB_USERNAME"
+            echo "::set-output name=db-password::$DB_PASSWORD"
+            echo "::set-output name=db-name::$DB_NAME"
+            echo "::set-output name=db-port::$DB_PORT"
           else
             terraform destroy -auto-approve
           fi
