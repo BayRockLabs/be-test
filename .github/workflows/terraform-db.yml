@@ -1,0 +1,68 @@
+name: Create Azure PostgreSQL Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+  push:
+    branches:
+      - db-env-test
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: db-env-test
+
+      - name: 'Login via Azure CLI'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform
+        env:
+          ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
+        run: terraform apply -auto-approve
+        working-directory: ./terraform
+        env:
+          ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+        working-directory: ./terraform
+        env:
+          ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
+
+      - name: Set outputs
+        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
+        id: outputs
+        run: |
+          echo "::set-output name=db-hostname::$(terraform output -raw DB_HOSTNAME)"
+          echo "::set-output name=db-username::$(terraform output -raw DB_USERNAME)"
+          echo "::set-output name=db-password::$(terraform output -raw DB_PASSWORD)"
+          echo "::set-output name=db-name::$(terraform output -raw DB_NAME)"
+          echo "::set-output name=db-port::$(terraform output -raw DB_PORT)"
+        working-directory: ./terraform

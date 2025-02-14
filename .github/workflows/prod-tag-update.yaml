@@ -1,0 +1,64 @@
+name: K8s tag update. Build, Tag Docker Image, and Update k8s Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-update-manifest-repo:
+    runs-on: ubuntu-latest
+    steps:
+    # Step 1: Checkout the code from C2C Backend repository
+    - name: Checkout Backend repository
+      uses: actions/checkout@v3
+
+    # Step 2: Generate the image tag using the short commit hash
+    - name: Set the image tag
+      id: vars
+      run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    # Step 3: Docker Login to Azure Container Registry (using your secrets)
+    - name: Docker Login
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.BRL_REGISTRY_LOGIN_SERVER }}
+        username: ${{ secrets.BRL_REGISTRY_USERNAME }}
+        password: ${{ secrets.BRL_REGISTRY_PASSWORD }}
+
+    # Step 4: Build and tag Docker image
+    - name: Build and tag Docker image
+      working-directory: c2c_service
+      run: |
+          IMAGE_TAG=${{ env.sha_short }}
+          docker build --build-arg AUTO_MIGRATE=${{ secrets.AUTO_MIGRATE }} -t ${{ secrets.BRL_REGISTRY_LOGIN_SERVER }}/c2c-service:${IMAGE_TAG} .
+
+    # Step 5: Push Docker image to Azure Container Registry
+    - name: Push Docker image
+      run: |
+          IMAGE_TAG=${{ env.sha_short }}
+          docker push ${{ secrets.BRL_REGISTRY_LOGIN_SERVER }}/c2c-service:${IMAGE_TAG}
+
+    # Step 6: Checkout K8s Repo to update the workflow file
+    - name: Checkout K8s Repo 
+      uses: actions/checkout@v3
+      with:
+        repository: BayRockLabs/c2c-k8s-manifests # Replace with the actual username/repository for K8s Repo 
+        token: ${{ secrets.PAT_FOR_K8SREPO }}  # Use PAT for GITHUB
+
+    # Step 7: Update the workflow file in K8s Repo to use the new image tag
+    - name: Update image tag in K8s Repo workflow file
+      run: |
+        IMAGE_TAG=${{ env.sha_short }}
+        
+        # Update the image tag in the workflow file of K8s Repo using sed
+        sed -i "s|brlregistrity.azurecr.io/c2c-service:.*|brlregistrity.azurecr.io/c2c-service:${IMAGE_TAG}|g" ${{ secrets.WORKFLOW_FILE_PATH }}
+        # Optionally display the updated file for verification
+        # cat ${{ secrets.WORKFLOW_FILE_PATH }}
+
+    # Step 8: Commit and Push changes to K8s Repo using git-auto-commit-action
+    - name: Commit and Push changes to K8s Repo
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: "Update Docker tag to ${IMAGE_TAG} in workflow"
+        branch: c2c  # Push the changes to the main branch of K8s Repo
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT_FOR_K8SREPO }}  # Use PAT_FOR_K8SREPO for pushing changes

@@ -1,0 +1,161 @@
+name: Workflow Generates DB Migrations & Commits to Git
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate_migrations:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: prepare envs from github secrets
+        run: |
+          mkdir -p /mnt/secrets-store
+          echo ${{ secrets.DB-HOSTNAME }} >> /mnt/secrets-store/DB-HOSTNAME
+          echo ${{ secrets.DB-USERNAME }} >> /mnt/secrets-store/DB-USERNAME
+          echo ${{ secrets.DB-PASSWORD }} >> /mnt/secrets-store/DB-PASSWORD
+          echo ${{ secrets.DB-PORT }} >> /mnt/secrets-store/DB-PORT
+          echo ${{ secrets.DB-NAME }} >> /mnt/secrets-store/DB-NAME
+          echo ${{ secrets.MONTHLY }} >> /mnt/secrets-store/MONTHLY
+          echo ${{ secrets.YEARLY }} >> /mnt/secrets-store/YEARLY
+          echo ${{ secrets.BI-WEEKLY }} >> /mnt/secrets-store/BI-WEEKLY
+          echo ${{ secrets.QUARTERLY }} >> /mnt/secrets-store/QUARTERLY
+          echo ${{ secrets.ACTIVE }} >> /mnt/secrets-store/ACTIVE
+          echo ${{ secrets.INACTIVE }} >> /mnt/secrets-store/INACTIVE
+          echo ${{ secrets.POTENTIAL-LEAD }} >> /mnt/secrets-store/POTENTIAL-LEAD
+          echo ${{ secrets.ONBOARDED }} >> /mnt/secrets-store/ONBOARDED
+          echo ${{ secrets.US }} >> /mnt/secrets-store/US
+          echo ${{ secrets.LATAM }} >> /mnt/secrets-store/LATAM
+          echo ${{ secrets.IND }} >> /mnt/secrets-store/IND
+          echo ${{ secrets.EUR }} >> /mnt/secrets-store/EUR
+          echo ${{ secrets.USD }} >> /mnt/secrets-store/USD
+          echo ${{ secrets.INR }} >> /mnt/secrets-store/INR
+          echo ${{ secrets.EMPLOYEE }} >> /mnt/secrets-store/EMPLOYEE
+          echo ${{ secrets.CONTRACTOR }} >> /mnt/secrets-store/CONTRACTOR
+          echo ${{ secrets.EMPLOYEE-HOURLY }} >> /mnt/secrets-store/EMPLOYEE-HOURLY
+          echo ${{ secrets.SUB-CONTRACTOR }} >> /mnt/secrets-store/SUB-CONTRACTOR
+          echo ${{ secrets.ACCOUNT-URL }} >> /mnt/secrets-store/ACCOUNT-URL
+          echo ${{ secrets.AZURE-CONNECTION-STRING }} >> /mnt/secrets-store/AZURE-CONNECTION-STRING
+          echo ${{ secrets.AZURE-CONTAINER-NAME }} >> /mnt/secrets-store/AZURE-CONTAINER-NAME
+          echo ${{ secrets.AUTH-API }} >> /mnt/secrets-store/AUTH-API
+          echo ${{ secrets.OPENAI-API }} >> /mnt/secrets-store/OPENAI-API
+          echo ${{ secrets.PROFILE }} >> /mnt/secrets-store/PROFILE
+          echo ${{ secrets.MPS-DOCUMENT-PARSER-API }} >> /mnt/secrets-store/MPS-DOCUMENT-PARSER-API
+          echo ${{ secrets.SCHEDULER-DAY }} >> /mnt/secrets-store/SCHEDULER-DAY
+          echo ${{ secrets.SCHEDULER-HOUR }} >> /mnt/secrets-store/SCHEDULER-HOUR
+          echo ${{ secrets.SCHEDULER-MINUTE }} >> /mnt/secrets-store/SCHEDULER-MINUTE
+          echo ${{ secrets.SCHEDULER-TIMEZONE }} >> /mnt/secrets-store/SCHEDULER-TIMEZONE
+
+
+      # Set up Python version
+      - name: Set up Python version 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        working-directory: c2c_service
+
+      # Azure login
+      - name: Azure login with AZURE_CREDENTIALS_FOR_POSTGRESQL_FIREWALL
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_FOR_POSTGRESQL_FIREWALL }}
+
+      # Get GitHub Runner's public IP
+      - name: Get GitHub Runner IP
+        id: get_runner_ip
+        run: |
+          IP=$(curl -s https://api.ipify.org)
+          echo "Runner IP: $IP"
+          echo "runner_ip=${IP}" >> $GITHUB_ENV
+
+      # Add GitHub Runner IP to PostgreSQL Flexible Server firewall
+      - name: Update IP in PostgreSQL Flexible Server firewall
+        env:
+          RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+          SERVER_NAME: ${{ secrets.POSTGRESQL_SERVER_NAME }}
+          RUNNER_IP: ${{ env.runner_ip }}
+        run: |
+          az postgres flexible-server firewall-rule create \
+            --resource-group $RESOURCE_GROUP \
+            --name $SERVER_NAME \
+            --rule-name "github-runner-ip" \
+            --start-ip-address $RUNNER_IP \
+            --end-ip-address $RUNNER_IP
+
+      # Generate migrations
+      - name: Generate migrations
+        run: |
+          python manage.py makemigrations --noinput
+        working-directory: c2c_service
+      - name: Upload migrations as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: migrations # Name of the artifact
+          path: c2c_service/c2c_modules/migrations
+      - name: Get Current Branch
+        id: get_branch
+        run: |
+          branch=$(git rev-parse --abbrev-ref HEAD)
+          echo "Current branch: $branch"
+          echo "branch_name=$branch" >> $GITHUB_ENV
+      - name: Commit and Push migrations
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Generated DB migrations"
+          commit_user_name: "GitHub Actions"
+          commit_user_email: "actions@github.com"
+          branch: ${{ env.branch_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} 
+
+      - name: Remove GitHub Runner IP from PostgreSQL Flexible Server firewall
+        env:
+          RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+          SERVER_NAME: ${{ secrets.POSTGRESQL_SERVER_NAME }}
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group $RESOURCE_GROUP \
+            --name $SERVER_NAME \
+            --rule-name github-runner-ip \
+            --yes
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Download migrations artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: migrations # Name of the artifact (must match the upload name)
+          path: c2c_service/c2c_modules/
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Docker Login
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Build and tag Docker image
+        working-directory: c2c_service
+        run: >
+          IMAGE_TAG=${{ steps.vars.outputs.sha_short }}
+
+          docker build  -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/c2c-service:${IMAGE_TAG} .
+      - name: Push Docker image
+        working-directory: c2c_service
+        run: >
+          IMAGE_TAG=${{ steps.vars.outputs.sha_short }}
+
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/c2c-service:${IMAGE_TAG}

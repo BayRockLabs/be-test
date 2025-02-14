@@ -1,0 +1,157 @@
+name: Workflow Generates DB Migrations & Commits to Git
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+jobs:
+  generate_migrations:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+      - name: Add .env file
+        run: |
+          echo "${{ secrets.DOT_ENV }}" | base64 --decode > c2c_service/.env
+          echo "PROFILE=DEMO" >> c2c_service/.env
+
+      # Set up Python version
+      - name: Set up Python version 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        working-directory: c2c_service
+
+      # Azure login
+      - name: Azure login with AZURE_CREDENTIALS_FOR_POSTGRESQL_FIREWALL
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_FOR_POSTGRESQL_FIREWALL }}
+
+      # Get GitHub Runner's public IP
+      - name: Get GitHub Runner IP
+        id: get_runner_ip
+        run: |
+          IP=$(curl -s https://api.ipify.org)
+          echo "Runner IP: $IP"
+          echo "runner_ip=${IP}" >> $GITHUB_ENV
+
+      # Add GitHub Runner IP to PostgreSQL Flexible Server firewall
+      - name: Update IP in PostgreSQL Flexible Server firewall
+        env:
+          RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+          SERVER_NAME: ${{ secrets.POSTGRESQL_SERVER_NAME }}
+          RUNNER_IP: ${{ env.runner_ip }}
+        run: |
+          az postgres flexible-server firewall-rule create \
+            --resource-group $RESOURCE_GROUP \
+            --name $SERVER_NAME \
+            --rule-name "github-runner-ip" \
+            --start-ip-address $RUNNER_IP \
+            --end-ip-address $RUNNER_IP
+
+      # Generate migrations
+      - name: Generate migrations
+        run: |
+          python manage.py makemigrations --noinput
+        working-directory: c2c_service
+      - name: Upload migrations as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrations # Name of the artifact
+          path: c2c_service/c2c_modules/migrations
+
+      - name: Get Current Branch
+        id: get_branch
+        run: |
+          branch=$(git rev-parse --abbrev-ref HEAD)
+          echo "Current branch: $branch"
+          echo "branch_name=$branch" >> $GITHUB_ENV
+      - name: Commit and Push migrations
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Generated DB migrations"
+          commit_user_name: "GitHub Actions"
+          commit_user_email: "actions@github.com"
+          branch: ${{ env.branch_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} 
+
+      - name: Remove GitHub Runner IP from PostgreSQL Flexible Server firewall
+        env:
+          RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+          SERVER_NAME: ${{ secrets.POSTGRESQL_SERVER_NAME }}
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group $RESOURCE_GROUP \
+            --name $SERVER_NAME \
+            --rule-name github-runner-ip \
+            --yes
+  build:
+    runs-on: ubuntu-latest
+    needs: generate_migrations
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Add .env file
+        run: |
+          echo "${{ secrets.DOT_ENV }}" | base64 --decode > c2c_service/.env
+          ls -ltra 
+          ls -ltra c2c_service/
+      - name: Docker Login
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.C2C_DEMO_BRL_REGISTRY_USERNAME }}
+          password: ${{ secrets.C2C_DEMO_BRL_REGISTRY_PASSWORD }}
+      - name: Build and tag Docker image
+        working-directory: c2c_service
+        run: >
+          IMAGE_TAG=${{ steps.vars.outputs.sha_short }}
+
+          docker build --build-arg AUTO_MIGRATE=${{ secrets.AUTO_MIGRATE }} -t ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-service:${IMAGE_TAG} .
+      - name: Push Docker image
+        working-directory: c2c_service
+        run: >
+          IMAGE_TAG=${{ steps.vars.outputs.sha_short }}
+
+          docker push ${{ secrets.C2C_DEMO_BRL_REGISTRY_LOGIN_SERVER }}/c2c-service:${IMAGE_TAG}
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Download migrations artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: migrations # Name of the artifact (must match the upload name)
+          path: c2c_service/c2c_modules/
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: 'Login via Azure CLI'
+        uses: azure/login@v1
+        with:
+          creds: ${{secrets.AZURE_CREDENTIALS}}
+      - name: deploy Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          acrName: c2cacr
+          containerAppName: c2c-service
+          resourceGroup: c2c-demo
+          imageToDeploy: c2cacr.azurecr.io/c2c-service:${{ steps.vars.outputs.sha_short }}
