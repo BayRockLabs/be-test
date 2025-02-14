@@ -46,7 +46,6 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.action }}" == "apply" ]; then
             terraform apply -auto-approve
-            terraform output -json > ../terraform_output.json
           else
             terraform destroy -auto-approve
           fi
@@ -54,22 +53,14 @@ jobs:
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
-      - name: List root directory contents
-        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
-        run: ls -la
-
-      - name: Install jq
-        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
-        run: sudo apt-get install -y jq
-
-      - name: Parse and Set Environment Variables
+      - name: Set Environment Variables
         if: github.event.inputs.action == 'apply' || github.event_name == 'push'
         run: |
-          DB_HOSTNAME=$(jq -r '.DB_HOSTNAME.value' ../terraform_output.json)
-          DB_USERNAME=$(jq -r '.DB_USERNAME.value' ../terraform_output.json)
-          DB_PASSWORD=$(jq -r '.DB_PASSWORD.value' ../terraform_output.json)
-          DB_NAME=$(jq -r '.DB_NAME.value' ../terraform_output.json)
-          DB_PORT=$(jq -r '.DB_PORT.value' ../terraform_output.json)
+          DB_HOSTNAME=$(terraform output -raw DB_HOSTNAME)
+          DB_USERNAME=$(terraform output -raw DB_USERNAME)
+          DB_PASSWORD=$(terraform output -raw DB_PASSWORD)
+          DB_NAME=$(terraform output -raw DB_NAME)
+          DB_PORT=$(terraform output -raw DB_PORT)
           echo "DB_HOSTNAME=$DB_HOSTNAME" >> $GITHUB_ENV
           echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
           echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
