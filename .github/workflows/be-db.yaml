@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    needs: terraform
+    needs: [terraform]
 
     steps:
       - name: Checkout code
@@ -34,6 +34,14 @@ jobs:
       - name: Extract short SHA
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Print DB Environment Variables
+        run: |
+          echo "DB_HOSTNAME=${{ needs.terraform.outputs.db-hostname }}"
+          echo "DB_USERNAME=${{ needs.terraform.outputs.db-username }}"
+          echo "DB_PASSWORD=${{ needs.terraform.outputs.db-password }}"
+          echo "DB_NAME=${{ needs.terraform.outputs.db-name }}"
+          echo "DB_PORT=${{ needs.terraform.outputs.db-port }}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
