@@ -45,24 +45,10 @@ jobs:
       - name: Terraform Apply or Destroy
         run: |
           if [ "${{ github.event.inputs.action }}" == "apply" ]; then
-            terraform apply -auto-approve
+            terraform apply -auto-approve -var "db_hostname=${{ secrets.DB_HOSTNAME }}" -var "db_username=${{ secrets.DB_USERNAME }}" -var "db_password=${{ secrets.DB_PASSWORD }}" -var "db_name=${{ secrets.DB_NAME }}" -var "db_port=${{ secrets.DB_PORT }}"
           else
             terraform destroy -auto-approve
           fi
         working-directory: terraform
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
-
-      - name: Set Environment Variables
-        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
-        run: |
-          DB_HOSTNAME=$(terraform output -raw DB_HOSTNAME)
-          DB_USERNAME=$(terraform output -raw DB_USERNAME)
-          DB_PASSWORD=$(terraform output -raw DB_PASSWORD)
-          DB_NAME=$(terraform output -raw DB_NAME)
-          DB_PORT=$(terraform output -raw DB_PORT)
-          echo "DB_HOSTNAME=$DB_HOSTNAME" >> $GITHUB_ENV
-          echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
-          echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
-          echo "DB_PORT=$DB_PORT" >> $GITHUB_ENV
