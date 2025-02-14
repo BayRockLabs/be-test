@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    needs: terraform
 
     steps:
       - name: Checkout code
@@ -16,23 +17,9 @@ jobs:
         with:
           ref: db-env-test
 
-      - name: Download terraform outputs
-        uses: actions/download-artifact@v2
-        with:
-          name: terraform-outputs
-          path: terraform
-
-      - name: Set environment variables from terraform outputs
-        id: set-vars
-        run: |
-          echo "DB_HOSTNAME=$(jq -r '.DB_HOSTNAME.value' terraform/outputs.json)" >> $GITHUB_ENV
-          echo "DB_USERNAME=$(jq -r '.DB_USERNAME.value' terraform/outputs.json)" >> $GITHUB_ENV
-          echo "DB_PASSWORD=$(jq -r '.DB_PASSWORD.value' terraform/outputs.json)" >> $GITHUB_ENV
-          echo "DB_NAME=$(jq -r '.DB_NAME.value' terraform/outputs.json)" >> $GITHUB_ENV
-          echo "DB_PORT=$(jq -r '.DB_PORT.value' terraform/outputs.json)" >> $GITHUB_ENV
-
       - name: Debug directory structure
-        run: ls -R
+        run: |
+          ls -R
 
       - name: Log in to Azure Container Registry
         uses: azure/docker-login@v1
@@ -77,11 +64,11 @@ jobs:
             ACCOUNT_URL=${{ secrets.ACCOUNT_URL }}
             AZURE_CONTAINER_NAME=${{ secrets.AZURE_CONTAINER_NAME }}
             AZURE_CONNECTION_STRING=${{ secrets.AZURE_CONNECTION_STRING }}
-            DB_HOSTNAME=${{ env.DB_HOSTNAME }}
-            DB_USERNAME=${{ env.DB_USERNAME }}
-            DB_PASSWORD=${{ env.DB_PASSWORD }}
-            DB_NAME=${{ env.DB_NAME }}
-            DB_PORT=${{ env.DB_PORT }}
+            DB_HOSTNAME=${{ needs.terraform.outputs.db-hostname }}
+            DB_USERNAME=${{ needs.terraform.outputs.db-username }}
+            DB_PASSWORD=${{ needs.terraform.outputs.db-password }}
+            DB_NAME=${{ needs.terraform.outputs.db-name }}
+            DB_PORT=${{ needs.terraform.outputs.db-port }}
             AUTH_API=${{ secrets.AUTH_API }}
             PROFILE=${{ secrets.PROFILE }}
             MPS_DOCUMENT_PARSER_API=${{ secrets.MPS_DOCUMENT_PARSER_API }}
