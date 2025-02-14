@@ -51,16 +51,17 @@ jobs:
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
-      - name: Parse and Set Secrets
+      - name: Parse and Set Outputs
+        id: parse_outputs
         run: |
           DB_HOSTNAME=$(jq -r '.DB_HOSTNAME.value' terraform/terraform_output.json)
           DB_USERNAME=$(jq -r '.DB_USERNAME.value' terraform/terraform_output.json)
           DB_PASSWORD=$(jq -r '.DB_PASSWORD.value' terraform/terraform_output.json)
           DB_NAME=$(jq -r '.DB_NAME.value' terraform/terraform_output.json)
           DB_PORT=$(jq -r '.DB_PORT.value' terraform/terraform_output.json)
-          gh secret set DB_HOSTNAME --body "$DB_HOSTNAME"
-          gh secret set DB_USERNAME --body "$DB_USERNAME"
-          gh secret set DB_PASSWORD --body "$DB_PASSWORD"
-          gh secret set DB_NAME --body "$DB_NAME"
-          gh secret set DB_PORT --body "$DB_PORT"
+          echo "::set-output name=db-hostname::$DB_HOSTNAME"
+          echo "::set-output name=db-username::$DB_USERNAME"
+          echo "::set-output name=db-password::$DB_PASSWORD"
+          echo "::set-output name=db-name::$DB_NAME"
+          echo "::set-output name=db-port::$DB_PORT"
         working-directory: terraform
