@@ -42,16 +42,29 @@ jobs:
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
-      - name: Terraform Apply
-        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
+      - name: Terraform Apply or Destroy
         run: |
-          terraform apply -auto-approve
-          terraform output -json > terraform_output.json
+          if [ "${{ github.event.inputs.action }}" == "apply" ]; then
+            terraform apply -auto-approve
+            terraform output -json > terraform_output.json
+          else
+            terraform destroy -auto-approve
+          fi
         working-directory: terraform
         env:
           ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }}
 
+      - name: List directory contents
+        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
+        run: ls -la terraform
+        working-directory: terraform
+
+      - name: Install jq
+        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
+        run: sudo apt-get install -y jq
+
       - name: Parse and Set Outputs
+        if: github.event.inputs.action == 'apply' || github.event_name == 'push'
         id: parse_outputs
         run: |
           DB_HOSTNAME=$(jq -r '.DB_HOSTNAME.value' terraform/terraform_output.json)
